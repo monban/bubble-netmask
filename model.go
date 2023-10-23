@@ -30,14 +30,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c", "q", "enter":
 			return m, tea.Quit
 		case "left", "h":
 			m.Size--
 		case "right", "l":
 			m.Size++
-		case "enter":
-			return m, nil
 		}
 	}
 	if m.Size < 0 {
