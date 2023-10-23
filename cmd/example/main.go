@@ -1,18 +1,13 @@
 package main
 
 import (
-	"net"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	netmask "github.com/monban/bubble-netmask"
 )
 
 func main() {
-	p := tea.NewProgram(netmask.Model{
-		Ip:   net.ParseIP("192.168.1.0"),
-		Size: 24,
-	})
+	p := tea.NewProgram(netmask.New("192.168.1.0"))
 
 	var m tea.Model
 	var err error
