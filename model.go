@@ -13,6 +13,7 @@ type Model struct {
 	Ip          net.IP
 	Size        int
 	ActiveStyle lipgloss.Style
+	Width       int
 }
 
 func New(networkAddress string) Model {
@@ -21,6 +22,7 @@ func New(networkAddress string) Model {
 	i := net.IPMask(m.Ip.DefaultMask())
 	_, sz := i.Size()
 	m.Size = sz
+	m.Width = 24
 	m.ActiveStyle = lipgloss.NewStyle().
 		Margin(0).
 		Padding(0).
@@ -64,33 +66,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	var left string
+	var right string
 	cidr := m.AsCidr()
-	_, mask, err := net.ParseCIDR(cidr)
+	_, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		log.Fatal(err)
 	}
+	mask := NetMaskString(ipnet.Mask)
 
-	border := lipgloss.Border{}
 	if m.Size == 0 {
-		border.Left = "|"
+		left = "|\n|"
 	} else {
-		border.Left = "<"
+		left = "<\n<"
 	}
 
 	if m.Size == 32 {
-		border.Right = "|"
+		right = "|\n|"
 	} else {
-		border.Right = ">"
+		right = ">\n>"
 	}
-	style := m.ActiveStyle.Copy().Border(border)
+	data := fmt.Sprintf(" %15s \n %15s ", cidr, mask)
+	str := lipgloss.JoinHorizontal(lipgloss.Center, left, data, right)
 
-	lipgloss.PlaceHorizontal(19, lipgloss.Left, border.Left)
-
-	return style.Render(fmt.Sprintf(
-		"%s\n%s\n",
-		cidr,
-		NetMaskString(mask.Mask),
-	))
+	return str
 }
 
 func (m Model) AsCidr() string {
