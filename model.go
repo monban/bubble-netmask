@@ -6,36 +6,19 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/log"
 )
 
 type Model struct {
-	Ip          net.IP
-	Size        int
-	ActiveStyle lipgloss.Style
-	Width       int
+	Size  int
+	IpNet net.IPNet
 }
 
 func New(networkAddress string) Model {
 	var m Model
-	m.Ip = net.ParseIP(networkAddress)
-	i := net.IPMask(m.Ip.DefaultMask())
-	_, sz := i.Size()
+	m.IpNet.IP = net.ParseIP(networkAddress)
+	m.IpNet.Mask = m.IpNet.IP.DefaultMask()
+	sz, _ := m.IpNet.Mask.Size()
 	m.Size = sz
-	m.Width = 24
-	m.ActiveStyle = lipgloss.NewStyle().
-		Margin(0).
-		Padding(0).
-		Height(2).
-		Width(24).
-		Align(lipgloss.Center).
-		BorderBackground(lipgloss.Color("63")).
-		BorderForeground(lipgloss.Color("223")).
-		BorderTop(false).
-		BorderRight(true).
-		BorderBottom(false).
-		BorderLeft(true)
-
 	return m
 }
 
@@ -62,18 +45,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	} else if m.Size > 32 {
 		m.Size = 32
 	}
+	m.IpNet.Mask = net.CIDRMask(m.Size, 32)
 	return m, nil
 }
 
 func (m Model) View() string {
 	var left string
 	var right string
-	cidr := m.AsCidr()
-	_, ipnet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	mask := NetMaskString(ipnet.Mask)
 
 	if m.Size == 0 {
 		left = "|\n|"
@@ -86,26 +64,27 @@ func (m Model) View() string {
 	} else {
 		right = ">\n>"
 	}
-	data := fmt.Sprintf(" %15s \n %15s ", cidr, mask)
+	data := fmt.Sprintf(" %15s \n %15s ", &m.IpNet, NetMaskString(m.IpNet.Mask))
 	str := lipgloss.JoinHorizontal(lipgloss.Center, left, data, right)
 
 	return str
 }
 
-func (m Model) AsCidr() string {
-	return fmt.Sprintf("%s/%d", m.Ip.String(), m.Size)
-}
-
 func (m Model) AsMask() string {
-	_, ipnet, err := net.ParseCIDR(m.AsCidr())
-	if err != nil {
-		log.Fatal(err)
-	}
-	return net.IP(ipnet.Mask).String()
+	return NetMaskString(m.IpNet.Mask)
 }
 
-func mask(ip net.IP, i int) {
-	net.ParseCIDR(fmt.Sprintf("%s/%d", ip.String(), i))
+func (m Model) Run() (net.IPMask, error) {
+	var n tea.Model
+	var err error
+
+	p := tea.NewProgram(m)
+	if n, err = p.Run(); err != nil {
+		return nil, fmt.Errorf("getting netmask: %w", err)
+	}
+	m = n.(Model)
+
+	return m.IpNet.Mask, nil
 }
 
 func NetMaskString(mask net.IPMask) string {
